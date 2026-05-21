@@ -44,6 +44,32 @@ export const seedData = {
   userProjects: [
     { id: 'up-1', userId: 'u-user', projectId: 'p-1' }
   ],
+  custodyAllocations: [
+    {
+      id: 'ca-1',
+      projectId: 'p-1',
+      userId: 'u-user',
+      amount: 5000,
+      status: 'received',
+      notes: 'عهدة افتتاحية للمشروع',
+      assignedAt: now,
+      receivedAt: now,
+      createdAt: now,
+      updatedAt: now
+    },
+    {
+      id: 'ca-2',
+      projectId: 'p-2',
+      userId: 'u-admin',
+      amount: 2000,
+      status: 'received',
+      notes: 'عهدة صيانة عاجلة',
+      assignedAt: now,
+      receivedAt: now,
+      createdAt: now,
+      updatedAt: now
+    }
+  ],
   transactions: [
     {
       id: 't-1',

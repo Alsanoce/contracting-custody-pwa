@@ -14,7 +14,15 @@ export function initializeData() {
 
 export function getDatabase() {
   initializeData();
-  return JSON.parse(localStorage.getItem(STORAGE_KEY));
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  const migrated = {
+    custodyAllocations: [],
+    ...data
+  };
+  if (!data.custodyAllocations) {
+    saveDatabase(migrated);
+  }
+  return migrated;
 }
 
 export function saveDatabase(data) {

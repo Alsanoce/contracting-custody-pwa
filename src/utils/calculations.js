@@ -13,6 +13,30 @@ export function sumTransactions(transactions) {
   return transactions.reduce((sum, transaction) => sum + toNumber(transaction.total), 0);
 }
 
+export function sumAllocations(allocations, status = null) {
+  return allocations
+    .filter((allocation) => !status || allocation.status === status)
+    .reduce((sum, allocation) => sum + toNumber(allocation.amount), 0);
+}
+
+export function calculateCustodyBalance(allocations, transactions) {
+  const assignedTotal = sumAllocations(allocations);
+  const receivedTotal = sumAllocations(allocations, 'received');
+  const pendingTotal = sumAllocations(allocations, 'pending');
+  const spentTotal = sumTransactions(transactions);
+  return {
+    assignedTotal,
+    receivedTotal,
+    pendingTotal,
+    spentTotal,
+    remainingTotal: receivedTotal - spentTotal
+  };
+}
+
+export function filterCustodyScope(items, projectId, userId) {
+  return items.filter((item) => item.projectId === projectId && item.userId === userId);
+}
+
 export function calculateContractorAmount(total) {
   return toNumber(total) * CONTRACTOR_RATE;
 }
