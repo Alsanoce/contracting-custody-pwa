@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  direction: rtl;
+}
+
+body {
+  margin: 0;
+  font-family: Tajawal, Arial, sans-serif;
+  background: #f8fafc;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-navy px-5 py-2.5 font-extrabold text-white shadow-sm transition hover:bg-brand-blue;
+  }
+
+  .btn-ghost {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-brand-navy transition hover:bg-slate-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2 font-bold text-red-700 transition hover:bg-red-100;
+  }
+
+  .icon-btn {
+    @apply grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-brand-navy;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-slate-900 outline-none transition focus:border-brand-green focus:ring-4 focus:ring-green-100;
+  }
+
+  .nav-btn {
+    @apply flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right font-bold text-slate-600 transition hover:bg-slate-50 hover:text-brand-navy;
+  }
+
+  .nav-btn-active {
+    @apply bg-brand-mint text-brand-navy;
+  }
+
+  .mobile-nav {
+    @apply flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold text-slate-500;
+  }
+
+  .mobile-nav-active {
+    @apply bg-brand-mint text-brand-navy;
+  }
+
+  .box,
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-soft;
+  }
+
+  .desktop-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .desktop-table th {
+    @apply bg-slate-50 px-4 py-3 text-right font-extrabold text-brand-navy;
+  }
+
+  .desktop-table td {
+    @apply border-t border-slate-100 px-4 py-3 align-top;
+  }
+
+  .desktop-table tfoot td {
+    @apply bg-slate-50;
+  }
+
+  .filters {
+    @apply mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft md:grid-cols-2 xl:grid-cols-4;
+  }
+}
+
+@media print {
+  header,
+  nav,
+  aside,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+}
