@@ -2,9 +2,18 @@ import { seedData } from '../data/seed';
 
 const STORAGE_KEY = 'contracting_custody_data_v1';
 const SESSION_KEY = 'contracting_custody_session_v1';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx5ZdkX6laooOBXXPAsuH2-uVnnNIF_VuUixlUF6IIJIFN9MIk5VxOvvdcblk-S8HB9Q/exec';
+const GAS_TOKEN = 'token_312743_2026';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const makeId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const collectionToPrefix = {
+  users: 'u',
+  projects: 'p',
+  userProjects: 'up',
+  custodyAllocations: 'ca',
+  transactions: 't'
+};
 
 export function initializeData() {
   if (!localStorage.getItem(STORAGE_KEY)) {
@@ -30,6 +39,57 @@ export function saveDatabase(data) {
   window.dispatchEvent(new Event('storage-updated'));
 }
 
+export async function apiRequest(action, payload = {}) {
+  const response = await fetch(GAS_WEB_APP_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify({
+      token: GAS_TOKEN,
+      action,
+      payload
+    })
+  });
+  return response.json();
+}
+
+export async function syncDatabaseFromRemote() {
+  const result = await apiRequest('sync');
+  if (!result.ok) {
+    throw new Error(result.error || 'تعذر جلب البيانات من Google Sheets');
+  }
+  saveDatabase({
+    users: result.data.users || [],
+    projects: result.data.projects || [],
+    userProjects: result.data.userProjects || [],
+    custodyAllocations: result.data.custodyAllocations || [],
+    transactions: result.data.transactions || []
+  });
+  return result.data;
+}
+
+function syncUpsert(collection, item) {
+  const action = collection === 'transactions' ? 'addTransaction' : 'upsert';
+  const payload = collection === 'transactions'
+    ? { record: item }
+    : { sheet: collection, record: item };
+
+  apiRequest(action, payload)
+    .then((result) => {
+      if (!result.ok) console.warn(result.error || 'تعذر حفظ البيانات في Google Sheets');
+    })
+    .catch((error) => console.warn('Google Sheets sync failed', error));
+}
+
+function syncDelete(collection, id) {
+  apiRequest('delete', { sheet: collection, id })
+    .then((result) => {
+      if (!result.ok) console.warn(result.error || 'تعذر حذف البيانات من Google Sheets');
+    })
+    .catch((error) => console.warn('Google Sheets delete failed', error));
+}
+
 export function getCollection(name) {
   return getDatabase()[name] || [];
 }
@@ -40,13 +100,14 @@ export function upsertRecord(collection, record, prefix) {
   const now = new Date().toISOString();
   const item = {
     ...record,
-    id: record.id || makeId(prefix),
+    id: record.id || makeId(prefix || collectionToPrefix[collection] || 'id'),
     createdAt: record.createdAt || now,
     updatedAt: now
   };
   const index = list.findIndex((entry) => entry.id === item.id);
   db[collection] = index >= 0 ? list.map((entry) => (entry.id === item.id ? item : entry)) : [item, ...list];
   saveDatabase(db);
+  syncUpsert(collection, item);
   return item;
 }
 
@@ -54,10 +115,12 @@ export function deleteRecord(collection, id) {
   const db = getDatabase();
   db[collection] = (db[collection] || []).filter((entry) => entry.id !== id);
   saveDatabase(db);
+  syncDelete(collection, id);
 }
 
 export function setUserProjects(userId, projectIds) {
   const db = getDatabase();
+  const previousLinks = db.userProjects.filter((link) => link.userId === userId);
   const kept = db.userProjects.filter((link) => link.userId !== userId);
   const nextLinks = projectIds.map((projectId) => ({
     id: makeId('up'),
@@ -66,6 +129,10 @@ export function setUserProjects(userId, projectIds) {
   }));
   db.userProjects = [...kept, ...nextLinks];
   saveDatabase(db);
+  nextLinks.forEach((link) => syncUpsert('userProjects', link));
+  previousLinks
+    .filter((link) => !projectIds.includes(link.projectId))
+    .forEach((link) => syncDelete('userProjects', link.id));
 }
 
 export function authenticate(phone, password) {

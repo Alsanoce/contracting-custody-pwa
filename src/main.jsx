@@ -28,6 +28,7 @@ import {
   logout,
   saveDatabase,
   setUserProjects,
+  syncDatabaseFromRemote,
   upsertRecord
 } from './services/localStorage';
 import {
@@ -62,6 +63,7 @@ function useDatabase() {
 
   useEffect(() => {
     const refresh = () => setDb(getDatabase());
+    syncDatabaseFromRemote().catch((error) => console.warn(error.message));
     window.addEventListener('storage-updated', refresh);
     window.addEventListener('storage', refresh);
     return () => {
@@ -352,14 +354,10 @@ function ProjectsPage({ user, db, notify }) {
 
   const remove = (id) => {
     if (!confirm('هل تريد حذف المشروع؟ سيتم حذف روابطه وعملياته من التخزين المؤقت.')) return;
-    const nextDb = {
-      ...db,
-      projects: db.projects.filter((project) => project.id !== id),
-      userProjects: db.userProjects.filter((link) => link.projectId !== id),
-      custodyAllocations: (db.custodyAllocations || []).filter((allocation) => allocation.projectId !== id),
-      transactions: db.transactions.filter((transaction) => transaction.projectId !== id)
-    };
-    saveDatabase(nextDb);
+    db.userProjects.filter((link) => link.projectId === id).forEach((link) => deleteRecord('userProjects', link.id));
+    (db.custodyAllocations || []).filter((allocation) => allocation.projectId === id).forEach((allocation) => deleteRecord('custodyAllocations', allocation.id));
+    db.transactions.filter((transaction) => transaction.projectId === id).forEach((transaction) => deleteRecord('transactions', transaction.id));
+    deleteRecord('projects', id);
     notify('تم حذف المشروع');
   };
 
