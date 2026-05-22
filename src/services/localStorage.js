@@ -2,7 +2,7 @@ import { seedData } from '../data/seed';
 
 const STORAGE_KEY = 'contracting_custody_data_v1';
 const SESSION_KEY = 'contracting_custody_session_v1';
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx5ZdkX6laooOBXXPAsuH2-uVnnNIF_VuUixlUF6IIJIFN9MIk5VxOvvdcblk-S8HB9Q/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzDJ4gGygDOAvlm4uGBocMJaEfUG0HImIrp7ANnlfoQlG1FtnYUb9p4V_KEc_b24p30cw/exec';
 const GAS_TOKEN = 'token_312743_2026';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -71,9 +71,12 @@ export async function syncDatabaseFromRemote() {
 
 function syncUpsert(collection, item) {
   const action = collection === 'transactions' ? 'addTransaction' : 'upsert';
+  const normalizedItem = collection === 'users'
+    ? { ...item, phone: String(item.phone || ''), password: String(item.password || '') }
+    : item;
   const payload = collection === 'transactions'
-    ? { record: item }
-    : { sheet: collection, record: item };
+    ? { record: normalizedItem }
+    : { sheet: collection, record: normalizedItem };
 
   apiRequest(action, payload)
     .then((result) => {
