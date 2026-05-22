@@ -64,11 +64,14 @@ function useDatabase() {
   useEffect(() => {
     const refresh = () => setDb(getDatabase());
     syncDatabaseFromRemote().catch((error) => console.warn(error.message));
+    const syncRefresh = () => refresh();
     window.addEventListener('storage-updated', refresh);
     window.addEventListener('storage', refresh);
+    window.addEventListener('sync-message', syncRefresh);
     return () => {
       window.removeEventListener('storage-updated', refresh);
       window.removeEventListener('storage', refresh);
+      window.removeEventListener('sync-message', syncRefresh);
     };
   }, []);
 
@@ -88,6 +91,14 @@ function App() {
     setToast(message);
     setTimeout(() => setToast(''), 2200);
   };
+
+  useEffect(() => {
+    const showSyncMessage = (event) => {
+      if (event.detail?.message) notify(event.detail.message);
+    };
+    window.addEventListener('sync-message', showSyncMessage);
+    return () => window.removeEventListener('sync-message', showSyncMessage);
+  }, []);
 
   if (!user) {
     return <LoginScreen onLogin={setUser} notify={notify} toast={toast} />;

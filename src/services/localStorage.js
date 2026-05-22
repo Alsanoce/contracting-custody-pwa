@@ -72,6 +72,10 @@ export async function syncDatabaseFromRemote() {
   return result.data;
 }
 
+export function emitSyncMessage(message, type = 'info') {
+  window.dispatchEvent(new CustomEvent('sync-message', { detail: { message, type } }));
+}
+
 function syncUpsert(collection, item) {
   const action = collection === 'transactions' ? 'addTransaction' : 'upsert';
   const normalizedItem = collection === 'users'
@@ -83,17 +87,35 @@ function syncUpsert(collection, item) {
 
   apiRequest(action, payload)
     .then((result) => {
-      if (!result.ok) console.warn(result.error || 'تعذر حفظ البيانات في Google Sheets');
+      if (!result.ok) {
+        const message = result.error || 'تعذر حفظ البيانات في Google Sheets';
+        console.warn(message);
+        emitSyncMessage(message, 'error');
+        return;
+      }
+      emitSyncMessage('تم الحفظ في Google Sheets', 'success');
     })
-    .catch((error) => console.warn('Google Sheets sync failed', error));
+    .catch((error) => {
+      console.warn('Google Sheets sync failed', error);
+      emitSyncMessage('تعذر الاتصال بـ Google Sheets', 'error');
+    });
 }
 
 function syncDelete(collection, id) {
   apiRequest('delete', { sheet: collection, id })
     .then((result) => {
-      if (!result.ok) console.warn(result.error || 'تعذر حذف البيانات من Google Sheets');
+      if (!result.ok) {
+        const message = result.error || 'تعذر حذف البيانات من Google Sheets';
+        console.warn(message);
+        emitSyncMessage(message, 'error');
+        return;
+      }
+      emitSyncMessage('تم الحذف من Google Sheets', 'success');
     })
-    .catch((error) => console.warn('Google Sheets delete failed', error));
+    .catch((error) => {
+      console.warn('Google Sheets delete failed', error);
+      emitSyncMessage('تعذر الاتصال بـ Google Sheets', 'error');
+    });
 }
 
 export function getCollection(name) {
