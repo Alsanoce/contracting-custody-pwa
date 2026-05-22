@@ -15,6 +15,9 @@ const collectionToPrefix = {
   transactions: 't'
 };
 
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '').replace(/^0+/, '');
+const normalizePassword = (value) => String(value || '');
+
 export function initializeData() {
   if (!localStorage.getItem(STORAGE_KEY)) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seedData));
@@ -139,8 +142,12 @@ export function setUserProjects(userId, projectIds) {
 }
 
 export function authenticate(phone, password) {
+  const normalizedPhone = normalizePhone(phone);
+  const normalizedPassword = normalizePassword(password);
   const user = getCollection('users').find(
-    (entry) => entry.phone === phone && entry.password === password && entry.status === 'active'
+    (entry) => normalizePhone(entry.phone) === normalizedPhone &&
+      normalizePassword(entry.password) === normalizedPassword &&
+      entry.status === 'active'
   );
   if (!user) return null;
   localStorage.setItem(SESSION_KEY, user.id);
