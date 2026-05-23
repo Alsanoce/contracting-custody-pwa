@@ -265,31 +265,38 @@ function Dashboard({ user, db, setPage, openProject }) {
     return sum + projectTotal * CONTRACTOR_RATE;
   }, 0) : 0;
   const userProjectCards = user.role === 'user' && (
-    <div className="mb-6">
+    <div className="mb-6 w-full">
       <SectionTitle title="مشاريعي" />
-      <CardsGrid>
+      <div className="grid w-full gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         {visibleProjects.map((project) => {
           const projectTransactions = visibleTransactions.filter((transaction) => transaction.projectId === project.id);
           const projectAllocations = visibleAllocations.filter((allocation) => allocation.projectId === project.id);
           const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
           return (
-            <button key={project.id} className="card text-right transition hover:-translate-y-0.5 hover:border-brand-green" onClick={() => openProject(project.id)}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-mint text-brand-green">
-                  <BriefcaseBusiness size={26} />
+            <button key={project.id} className="group rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-soft transition hover:-translate-y-0.5 hover:border-brand-green" onClick={() => openProject(project.id)}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-mint text-brand-green transition group-hover:bg-brand-green group-hover:text-white">
+                    <BriefcaseBusiness size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-brand-navy">{project.projectName}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{project.location} - {project.ownerName}</p>
+                  </div>
                 </div>
                 <Badge>{project.status}</Badge>
               </div>
-              <h3 className="text-lg font-extrabold text-brand-navy">{project.projectName}</h3>
-              <p className="mt-1 text-sm text-slate-500">{project.location} - {project.ownerName}</p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-5 grid grid-cols-2 gap-3">
                 <MiniMetric title="المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
                 <MiniMetric title="المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
+              </div>
+              <div className="mt-4 rounded-xl bg-brand-navy px-4 py-3 text-center font-extrabold text-white">
+                دخول المشروع
               </div>
             </button>
           );
         })}
-      </CardsGrid>
+      </div>
       {!visibleProjects.length && <EmptyState text="لا توجد مشاريع مرتبطة بحسابك" />}
     </div>
   );
