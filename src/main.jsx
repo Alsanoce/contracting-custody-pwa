@@ -304,21 +304,20 @@ function Dashboard({ user, db, setPage, openProject }) {
   return (
     <Page title={user.role === 'admin' ? 'لوحة تحكم المسؤول' : 'لوحة تحكم المستخدم'}>
       {userProjectCards}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat title="عدد المشاريع" value={visibleProjects.length} />
-        {user.role === 'admin' && <Stat title="عدد المستخدمين" value={db.users.length} />}
-        <Stat title="العهدة المستلمة" value={formatCurrency(balance.receivedTotal)} />
-        <Stat title={user.role === 'admin' ? 'إجمالي كل العمليات' : 'إجمالي عملياتي'} value={formatCurrency(total)} />
-        <Stat title="الرصيد المتبقي" value={formatCurrency(balance.remainingTotal)} />
-        {user.role === 'admin' && <Stat title="إجمالي نسبة المقاول 7%" value={formatCurrency(contractor)} />}
-        {user.role === 'user' && <Stat title="عدد العمليات" value={visibleTransactions.length} />}
-      </div>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {user.role === 'user' && <button className="btn-primary" onClick={() => setPage('add')}><Plus size={18} /> إضافة مصروف جديد</button>}
-        <button className="btn-ghost" onClick={() => setPage('custody')}><WalletCards size={18} /> متابعة العهدة</button>
-      </div>
-      <SectionTitle title="آخر العمليات" />
-      <TransactionList transactions={visibleTransactions.slice(0, 5)} db={db} compact />
+      {user.role === 'admin' && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat title="عدد المشاريع" value={visibleProjects.length} />
+            <Stat title="عدد المستخدمين" value={db.users.length} />
+            <Stat title="العهدة المستلمة" value={formatCurrency(balance.receivedTotal)} />
+            <Stat title="إجمالي كل العمليات" value={formatCurrency(total)} />
+            <Stat title="الرصيد المتبقي" value={formatCurrency(balance.remainingTotal)} />
+            <Stat title="إجمالي نسبة المقاول 7%" value={formatCurrency(contractor)} />
+          </div>
+          <SectionTitle title="آخر العمليات" />
+          <TransactionList transactions={visibleTransactions.slice(0, 5)} db={db} compact />
+        </>
+      )}
     </Page>
   );
 }
