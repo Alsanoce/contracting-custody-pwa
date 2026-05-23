@@ -338,6 +338,16 @@ function ProjectDetailPage({ user, db, projectId, setPage, notify }) {
   const projectTransactions = getVisibleTransactions(user, db).filter((transaction) => transaction.projectId === project.id);
   const projectAllocations = getVisibleAllocations(user, db).filter((allocation) => allocation.projectId === project.id);
   const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
+  const pendingAllocations = projectAllocations.filter((allocation) => allocation.status === 'pending');
+
+  const receiveAllocation = (allocation) => {
+    upsertRecord('custodyAllocations', {
+      ...allocation,
+      status: 'received',
+      receivedAt: new Date().toISOString()
+    }, 'ca');
+    notify('تم تأكيد استلام العهدة');
+  };
 
   return (
     <Page
@@ -354,9 +364,26 @@ function ProjectDetailPage({ user, db, projectId, setPage, notify }) {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Stat title="العهدة المستلمة" value={formatCurrency(projectBalance.receivedTotal)} />
+          <Stat title="بانتظار الاستلام" value={formatCurrency(projectBalance.pendingTotal)} />
           <Stat title="إجمالي المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
           <Stat title="الرصيد المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
         </div>
+        {!!pendingAllocations.length && (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <h3 className="font-extrabold text-amber-900">عهدة بانتظار الاستلام</h3>
+            <div className="mt-3 grid gap-2">
+              {pendingAllocations.map((allocation) => (
+                <div key={allocation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-3">
+                  <div>
+                    <strong className="text-brand-navy">{formatCurrency(allocation.amount)}</strong>
+                    {allocation.notes && <p className="text-sm text-slate-500">{allocation.notes}</p>}
+                  </div>
+                  <button className="btn-primary" onClick={() => receiveAllocation(allocation)}>تم الاستلام</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button className="btn-primary" onClick={() => setAdding(true)}><Plus size={18} /> إضافة بند مصروفات</button>
           <button className="btn-ghost" onClick={() => setPage('reports')}><Printer size={18} /> طباعة التقارير</button>
