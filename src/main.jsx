@@ -264,9 +264,39 @@ function Dashboard({ user, db, setPage, openProject }) {
     const projectTotal = sumTransactions(db.transactions.filter((t) => t.projectId === project.id));
     return sum + projectTotal * CONTRACTOR_RATE;
   }, 0) : 0;
+  const userProjectCards = user.role === 'user' && (
+    <div className="mb-6">
+      <SectionTitle title="مشاريعي" />
+      <CardsGrid>
+        {visibleProjects.map((project) => {
+          const projectTransactions = visibleTransactions.filter((transaction) => transaction.projectId === project.id);
+          const projectAllocations = visibleAllocations.filter((allocation) => allocation.projectId === project.id);
+          const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
+          return (
+            <button key={project.id} className="card text-right transition hover:-translate-y-0.5 hover:border-brand-green" onClick={() => openProject(project.id)}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-mint text-brand-green">
+                  <BriefcaseBusiness size={26} />
+                </div>
+                <Badge>{project.status}</Badge>
+              </div>
+              <h3 className="text-lg font-extrabold text-brand-navy">{project.projectName}</h3>
+              <p className="mt-1 text-sm text-slate-500">{project.location} - {project.ownerName}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <MiniMetric title="المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
+                <MiniMetric title="المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
+              </div>
+            </button>
+          );
+        })}
+      </CardsGrid>
+      {!visibleProjects.length && <EmptyState text="لا توجد مشاريع مرتبطة بحسابك" />}
+    </div>
+  );
 
   return (
     <Page title={user.role === 'admin' ? 'لوحة تحكم المسؤول' : 'لوحة تحكم المستخدم'}>
+      {userProjectCards}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat title="عدد المشاريع" value={visibleProjects.length} />
         {user.role === 'admin' && <Stat title="عدد المستخدمين" value={db.users.length} />}
@@ -280,35 +310,6 @@ function Dashboard({ user, db, setPage, openProject }) {
         {user.role === 'user' && <button className="btn-primary" onClick={() => setPage('add')}><Plus size={18} /> إضافة مصروف جديد</button>}
         <button className="btn-ghost" onClick={() => setPage('custody')}><WalletCards size={18} /> متابعة العهدة</button>
       </div>
-      {user.role === 'user' && (
-        <>
-          <SectionTitle title="مشاريعي" />
-          <CardsGrid>
-            {visibleProjects.map((project) => {
-              const projectTransactions = visibleTransactions.filter((transaction) => transaction.projectId === project.id);
-              const projectAllocations = visibleAllocations.filter((allocation) => allocation.projectId === project.id);
-              const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
-              return (
-                <button key={project.id} className="card text-right transition hover:-translate-y-0.5 hover:border-brand-green" onClick={() => openProject(project.id)}>
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-mint text-brand-green">
-                      <BriefcaseBusiness size={26} />
-                    </div>
-                    <Badge>{project.status}</Badge>
-                  </div>
-                  <h3 className="text-lg font-extrabold text-brand-navy">{project.projectName}</h3>
-                  <p className="mt-1 text-sm text-slate-500">{project.location} - {project.ownerName}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <MiniMetric title="المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
-                    <MiniMetric title="المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
-                  </div>
-                </button>
-              );
-            })}
-          </CardsGrid>
-          {!visibleProjects.length && <EmptyState text="لا توجد مشاريع مرتبطة بحسابك" />}
-        </>
-      )}
       <SectionTitle title="آخر العمليات" />
       <TransactionList transactions={visibleTransactions.slice(0, 5)} db={db} compact />
     </Page>
@@ -884,7 +885,9 @@ function Toast({ message }) {
 
 function getVisibleProjects(user, db) {
   if (user.role === 'admin') return db.projects;
-  const ids = db.userProjects.filter((link) => link.userId === user.id).map((link) => link.projectId);
+  const linkedIds = db.userProjects.filter((link) => link.userId === user.id).map((link) => link.projectId);
+  const custodyIds = (db.custodyAllocations || []).filter((allocation) => allocation.userId === user.id).map((allocation) => allocation.projectId);
+  const ids = [...new Set([...linkedIds, ...custodyIds])];
   return db.projects.filter((project) => ids.includes(project.id));
 }
 
