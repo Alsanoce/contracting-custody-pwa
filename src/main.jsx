@@ -46,6 +46,21 @@ import { printReport } from './utils/pdf';
 
 const categories = ['بناء', 'سباكة', 'كهرباء', 'مالي', 'أخرى'];
 const statuses = ['نشط', 'متوقف', 'منتهي'];
+const expenseItems = [
+  { name: 'عمل يد سباكة', category: 'سباكة' },
+  { name: 'مواد سباكة', category: 'سباكة' },
+  { name: 'سباكة', category: 'سباكة' },
+  { name: 'عمل يد كهرباء', category: 'كهرباء' },
+  { name: 'مواد كهرباء', category: 'كهرباء' },
+  { name: 'كهرباء', category: 'كهرباء' },
+  { name: 'عمل يد بناء', category: 'بناء' },
+  { name: 'مواد بناء', category: 'بناء' },
+  { name: 'أسمنت', category: 'بناء' },
+  { name: 'رمل', category: 'بناء' },
+  { name: 'نقل مواد', category: 'أخرى' },
+  { name: 'مصروف مالي', category: 'مالي' },
+  { name: 'أخرى', category: 'أخرى' }
+];
 const navItems = [
   { id: 'dashboard', label: 'الرئيسية', icon: Home },
   { id: 'custody', label: 'العهدة', icon: WalletCards },
@@ -84,6 +99,7 @@ function App() {
     return getSessionUser();
   });
   const [page, setPage] = useState('dashboard');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [toast, setToast] = useState('');
   const db = useDatabase();
 
@@ -109,7 +125,8 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900" dir="rtl">
       <Shell user={user} page={page} setPage={setPage} navItems={effectiveNav} onLogout={() => { logout(); setUser(null); }}>
-        {page === 'dashboard' && <Dashboard user={user} db={db} setPage={setPage} />}
+        {page === 'dashboard' && <Dashboard user={user} db={db} setPage={setPage} openProject={(projectId) => { setSelectedProjectId(projectId); setPage('projectDetail'); }} />}
+        {page === 'projectDetail' && <ProjectDetailPage user={user} db={db} projectId={selectedProjectId} setPage={setPage} notify={notify} />}
         {page === 'custody' && <CustodyPage user={user} db={db} notify={notify} />}
         {page === 'projects' && <ProjectsPage user={user} db={db} notify={notify} />}
         {page === 'users' && user.role === 'admin' && <UsersPage db={db} notify={notify} />}
@@ -237,7 +254,7 @@ function MobileNavButton({ item, active, onClick }) {
   );
 }
 
-function Dashboard({ user, db, setPage }) {
+function Dashboard({ user, db, setPage, openProject }) {
   const visibleProjects = getVisibleProjects(user, db);
   const visibleTransactions = getVisibleTransactions(user, db);
   const visibleAllocations = getVisibleAllocations(user, db);
@@ -263,8 +280,102 @@ function Dashboard({ user, db, setPage }) {
         {user.role === 'user' && <button className="btn-primary" onClick={() => setPage('add')}><Plus size={18} /> إضافة مصروف جديد</button>}
         <button className="btn-ghost" onClick={() => setPage('custody')}><WalletCards size={18} /> متابعة العهدة</button>
       </div>
+      {user.role === 'user' && (
+        <>
+          <SectionTitle title="مشاريعي" />
+          <CardsGrid>
+            {visibleProjects.map((project) => {
+              const projectTransactions = visibleTransactions.filter((transaction) => transaction.projectId === project.id);
+              const projectAllocations = visibleAllocations.filter((allocation) => allocation.projectId === project.id);
+              const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
+              return (
+                <button key={project.id} className="card text-right transition hover:-translate-y-0.5 hover:border-brand-green" onClick={() => openProject(project.id)}>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-mint text-brand-green">
+                      <BriefcaseBusiness size={26} />
+                    </div>
+                    <Badge>{project.status}</Badge>
+                  </div>
+                  <h3 className="text-lg font-extrabold text-brand-navy">{project.projectName}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{project.location} - {project.ownerName}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <MiniMetric title="المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
+                    <MiniMetric title="المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
+                  </div>
+                </button>
+              );
+            })}
+          </CardsGrid>
+          {!visibleProjects.length && <EmptyState text="لا توجد مشاريع مرتبطة بحسابك" />}
+        </>
+      )}
       <SectionTitle title="آخر العمليات" />
       <TransactionList transactions={visibleTransactions.slice(0, 5)} db={db} compact />
+    </Page>
+  );
+}
+
+function ProjectDetailPage({ user, db, projectId, setPage, notify }) {
+  const [adding, setAdding] = useState(false);
+  const project = getVisibleProjects(user, db).find((entry) => entry.id === projectId);
+
+  if (!project) {
+    return (
+      <Page title="المشروع">
+        <EmptyState text="المشروع غير متاح لهذا المستخدم" />
+        <button className="btn-ghost mt-4" onClick={() => setPage('dashboard')}>رجوع للرئيسية</button>
+      </Page>
+    );
+  }
+
+  const projectTransactions = getVisibleTransactions(user, db).filter((transaction) => transaction.projectId === project.id);
+  const projectAllocations = getVisibleAllocations(user, db).filter((allocation) => allocation.projectId === project.id);
+  const projectBalance = calculateCustodyBalance(projectAllocations, projectTransactions);
+
+  return (
+    <Page
+      title={project.projectName}
+      action={<button className="btn-ghost" onClick={() => setPage('dashboard')}>رجوع</button>}
+    >
+      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-slate-500">{project.location} - {project.ownerName}</p>
+            {project.notes && <p className="mt-2 text-sm text-slate-600">{project.notes}</p>}
+          </div>
+          <Badge>{project.status}</Badge>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Stat title="العهدة المستلمة" value={formatCurrency(projectBalance.receivedTotal)} />
+          <Stat title="إجمالي المصروفات" value={formatCurrency(projectBalance.spentTotal)} />
+          <Stat title="الرصيد المتبقي" value={formatCurrency(projectBalance.remainingTotal)} />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button className="btn-primary" onClick={() => setAdding(true)}><Plus size={18} /> إضافة بند مصروفات</button>
+          <button className="btn-ghost" onClick={() => setPage('reports')}><Printer size={18} /> طباعة التقارير</button>
+          <button className="btn-ghost" onClick={() => setPage('transactions')}><ClipboardList size={18} /> العمليات السابقة</button>
+        </div>
+      </div>
+
+      {adding && (
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-xl font-extrabold text-brand-navy">إضافة بند مصروفات</h3>
+            <button className="icon-btn" onClick={() => setAdding(false)}><X size={18} /></button>
+          </div>
+          <TransactionEditor
+            user={user}
+            db={db}
+            notify={notify}
+            lockedProjectId={project.id}
+            embedded
+            onSaved={() => setAdding(false)}
+          />
+        </div>
+      )}
+
+      <SectionTitle title="مصروفات المشروع" />
+      <TransactionList transactions={projectTransactions} db={db} compact />
     </Page>
   );
 }
@@ -506,13 +617,14 @@ function ReportsPage({ user, db }) {
   );
 }
 
-function TransactionEditor({ user, db, notify, initial = {}, embedded = false }) {
+function TransactionEditor({ user, db, notify, initial = {}, embedded = false, lockedProjectId = '', onSaved }) {
   const allowedProjects = getVisibleProjects(user, db);
+  const defaultProjectId = lockedProjectId || initial.projectId || allowedProjects[0]?.id || '';
   const [form, setForm] = useState({
     id: initial.id,
     date: initial.date || new Date().toISOString().slice(0, 10),
     userId: initial.userId || user.id,
-    projectId: initial.projectId || allowedProjects[0]?.id || '',
+    projectId: defaultProjectId,
     category: initial.category || 'بناء',
     itemName: initial.itemName || '',
     quantity: initial.quantity || 1,
@@ -540,6 +652,7 @@ function TransactionEditor({ user, db, notify, initial = {}, embedded = false })
     upsertRecord('transactions', { ...form, total, attachments: form.attachments || [] }, 't');
     notify(form.id ? 'تم تعديل العملية' : 'تم حفظ العملية');
     if (!form.id) setForm({ ...form, itemName: '', quantity: 1, unitPrice: 0, notes: '', attachments: [] });
+    if (onSaved) onSaved();
   };
 
   const readFiles = (files) => {
@@ -554,10 +667,34 @@ function TransactionEditor({ user, db, notify, initial = {}, embedded = false })
     <form onSubmit={submit} className={embedded ? '' : 'rounded-2xl border border-slate-200 bg-white p-4 shadow-soft'}>
       {!embedded && <h2 className="mb-4 text-xl font-extrabold text-brand-navy">إضافة مصروف</h2>}
       <div className="grid gap-3 md:grid-cols-2">
-        <Select label="المشروع" value={form.projectId} onChange={(projectId) => setForm({ ...form, projectId })} options={allowedProjects.map((p) => [p.id, p.projectName])} />
+        {lockedProjectId ? (
+          <Label text="المشروع">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 font-bold text-brand-navy">
+              {nameById(allowedProjects, lockedProjectId, 'projectName')}
+            </div>
+          </Label>
+        ) : (
+          <Select label="المشروع" value={form.projectId} onChange={(projectId) => setForm({ ...form, projectId })} options={allowedProjects.map((p) => [p.id, p.projectName])} />
+        )}
         <Label text="التاريخ"><input className="input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></Label>
         <Select label="التصنيف" value={form.category} onChange={(category) => setForm({ ...form, category })} options={categories.map((c) => [c, c])} />
-        <Label text="اسم الصنف / البيان"><input className="input" value={form.itemName} onChange={(e) => setForm({ ...form, itemName: e.target.value })} required /></Label>
+        <Label text="الصنف / البيان">
+          <input
+            className="input"
+            list="expense-items"
+            value={form.itemName}
+            onChange={(e) => {
+              const itemName = e.target.value;
+              const preset = expenseItems.find((item) => item.name === itemName);
+              setForm({ ...form, itemName, category: preset?.category || form.category });
+            }}
+            placeholder="ابحث أو اكتب صنف جديد"
+            required
+          />
+          <datalist id="expense-items">
+            {expenseItems.map((item) => <option key={item.name} value={item.name} />)}
+          </datalist>
+        </Label>
         <Label text="الكمية"><input className="input" type="number" min="0" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required /></Label>
         <Label text="السعر"><input className="input" type="number" min="0" step="0.01" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} required /></Label>
       </div>
